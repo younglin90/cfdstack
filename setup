@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# cfdstack setup — register CFD skills with Claude Code
+set -e
+
+CFDSTACK_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+
+SKILLS=(cfd-new cfd-check cfd-run cfd-post cfd-debug cfd-validate cfd-report)
+
+echo "Installing cfdstack skills..."
+
+# Create skills directory if it doesn't exist
+mkdir -p "$CLAUDE_SKILLS_DIR"
+
+# Symlink cfdstack root (for the meta-skill /cfdstack)
+if [ -L "$CLAUDE_SKILLS_DIR/cfdstack" ] || [ -d "$CLAUDE_SKILLS_DIR/cfdstack" ]; then
+  rm -rf "$CLAUDE_SKILLS_DIR/cfdstack"
+fi
+ln -snf "$CFDSTACK_DIR" "$CLAUDE_SKILLS_DIR/cfdstack"
+
+# Symlink each individual skill directory
+for skill in "${SKILLS[@]}"; do
+  target="$CLAUDE_SKILLS_DIR/$skill"
+  if [ -L "$target" ] || [ -d "$target" ]; then
+    rm -rf "$target"
+  fi
+  ln -snf "$CFDSTACK_DIR/$skill" "$target"
+  echo "  ✓ /$skill"
+done
+
+echo ""
+echo "cfdstack ready."
+echo ""
+echo "Available skills:"
+echo "  /cfdstack     — overview and skill navigation"
+echo "  /cfd-new      — scaffold a new CFD simulation case"
+echo "  /cfd-check    — validate mesh quality and case setup"
+echo "  /cfd-run      — run solver and monitor convergence"
+echo "  /cfd-post     — post-process and visualize results"
+echo "  /cfd-debug    — debug divergence and convergence issues"
+echo "  /cfd-validate — validate results against benchmarks"
+echo "  /cfd-report   — generate a simulation report"
+echo ""
+echo "Add cfdstack to your project's CLAUDE.md so teammates get it:"
+echo "  cp -Rf ~/.claude/skills/cfdstack .claude/skills/cfdstack"
+echo "  cd .claude/skills/cfdstack && ./setup"
