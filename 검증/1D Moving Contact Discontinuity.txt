@@ -1,0 +1,99 @@
+# 1D Moving Contact Discontinuity — Problem Specification
+
+## Purpose
+Verify that pressure, velocity, and temperature remain continuous across
+a moving phase interface (contact discontinuity) at all times.
+Two adjacent fluid volumes (liquid + gas) move together at constant speed.
+
+---
+
+## 1. Domain & Grid
+
+- Domain length     : L  = 1.0 m
+- Number of cells   : Nx = 80  (cell-centered FVM, uniform spacing dx = L/Nx = 0.0125 m)
+
+---
+
+## 2. Initial Conditions
+
+# Interface location
+x_interface = 0.1 m   # water (left) | air (right)
+
+# Uniform velocity over entire domain
+u(x, 0) = 1.0 m/s    for all x in [0, L]
+
+# Spatial fluid assignment:
+#   x <  0.1 m : Water (NASG EOS)
+#   x >= 0.1 m : Air   (Ideal Gas EOS)
+
+# Pressure and temperature: uniform over entire domain
+p(x, 0) = p0          # see fluid properties below
+T(x, 0) = T0          # see fluid properties below
+
+### Fluid 1 — Water (x < 0.1 m) : NASG EOS
+  EOS : (p + Pi) * (1/rho - b) = (gamma - 1) * Cv * T
+  gamma = 4.1
+  Pi    = 4.4e8  Pa
+  b     = 6.61e-4 m³/kg
+  Cv    = 3610.0 J/(kg·K)
+  rho0  = 1000.0 kg/m³
+
+### Fluid 2 — Air (x >= 0.1 m) : Ideal Gas EOS
+  EOS : p = (gamma - 1) * rho * e
+  gamma = 1.4
+  Pi    = 0.0 Pa
+  b     = 0.0 m³/kg
+  Cv    = 718.0 J/(kg·K)
+  rho0  = ~1.16 kg/m³   # derived from p0, T0 via EOS
+
+---
+
+## 3. Boundary Conditions
+
+### Left boundary (x = 0) — Inlet : Water inflow
+  u_in  = 1.0 m/s      # fixed, constant velocity (no perturbation)
+  fluid = Water (NASG EOS, same properties as initial water region)
+  p, T  : extrapolate from interior (zero-gradient)
+
+### Right boundary (x = L) — Outlet : Non-reflecting
+  p     : zero-gradient (du/dn = 0)
+  u     : zero-gradient
+  T     : zero-gradient
+
+---
+
+## 4. Time Integration
+
+- End time      : t_end = 0.6 s
+- CFL condition : CFL = 0.5
+  dt = CFL * dx / max(|u| + a)     # update every time step
+
+---
+
+## 5. Expected Behavior & Validation
+
+At t = 0.6 s:
+  - Interface has convected to : x_interface ≈ 0.1 + u * t_end = 0.1 + 1.0 * 0.6 = 0.7 m
+    → interface remains inside domain (L = 1.0 m)  ✓
+    → left region  (x < 0.7 m) : Water
+    → right region (x > 0.7 m) : Air
+
+  Quantities to monitor at all times:
+    1. Pressure    p(x, t)  : must remain continuous across interface (no jump)
+    2. Velocity    u(x, t)  : must remain continuous across interface (no jump)
+    3. Temperature T(x, t)  : must remain continuous across interface (no jump)
+
+  Pass criterion:
+    max |dp| across interface < numerical tolerance   (e.g., < 1e-6 * p0)
+    max |du| across interface < numerical tolerance
+    max |dT| across interface < numerical tolerance
+
+---
+
+## 6. Notes
+
+- This is a pure advection test; no shock or rarefaction should appear.
+- Any spurious pressure/velocity oscillation at the interface
+  indicates a deficiency in the interface treatment scheme.
+- Compare results against exact solution:
+    p = const, u = const, T = const everywhere at all times.

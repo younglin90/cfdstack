@@ -1,0 +1,107 @@
+# 1D Acoustic Wave Propagation Simulation — Problem Specification
+
+## 1. Domain & Grid
+
+- Domain length     : L  = 1.5 m
+- Number of cells   : Nx = 80  (cell-centered FVM, uniform spacing dx = L/Nx = 0.01875 m)
+- Interface location: x_interface = 0.5 m  (air left | water right)
+
+---
+
+## 2. Initial Conditions
+
+| Variable    | Value              |
+|-------------|--------------------|
+| u0          | 1.0   m/s  (uniform over entire domain) |
+| p0          | 1.0e5 Pa           |
+| T0          | 300.0 K            |
+
+# Spatial initialization:
+#   x <  x_interface : Air   (Ideal Gas EOS)
+#   x >= x_interface : Water (NASG EOS)
+#
+# All variables are uniform within each fluid region at t=0:
+#   u(x, 0) = u0 = 1.0 m/s   for all x in [0, L]
+#   p(x, 0) = p0 = 1.0e5 Pa  for all x in [0, L]
+#   T(x, 0) = T0 = 300.0 K   for all x in [0, L]
+
+### Fluid 1 — Air (x < 0.5 m) : Ideal Gas EOS
+  EOS : p = (gamma - 1) * rho * e
+  gamma   = 1.4
+  Pi      = 0.0 Pa
+  Cv      = 718.0 J/(kg·K)
+  rho0    = p0 / ((gamma-1) * Cv * T0)   # ~1.16 kg/m³
+
+### Fluid 2 — Water (x >= 0.5 m) : NASG (Noble-Abel Stiffened Gas) EOS
+  EOS : (p + Pi) * (1/rho - b) = (gamma - 1) * Cv * T
+  gamma   = 4.1
+  Pi      = 4.4e8 Pa
+  b       = 6.61e-4 m³/kg   # co-volume (set 0 if using plain SG)
+  Cv      = 3610.0 J/(kg·K)
+  rho0    = 1000.0 kg/m³
+
+  # Sound speed check (plain SG limit, b=0):
+  # a_water = sqrt(gamma*(p0+Pi)/rho0) ≈ 1343 m/s  ✓
+
+---
+
+## 3. Boundary Conditions
+
+### Inlet (x = 0) — Velocity perturbation (subsonic inflow)
+  u_in(t) = u0 + du0 * sin(2*pi*f*t + 1.5*pi)   if t < 1/f
+           = u0 - du0                              if t >= 1/f
+
+  f        = 2500.0 Hz
+  T_cycle  = 1/f = 4.0e-4 s
+
+  Two amplitude cases:
+    Case A (linear regime)    : du0 = 0.01 * u0 = 0.01  m/s   (du << a0)
+    Case B (nonlinear regime) : du0 = 100.0 * u0 = 100.0 m/s  (du ~  a0)
+
+  # Pressure and density at inlet: extrapolate from interior
+  # (use characteristic-based or zero-gradient for p, rho)
+
+### Outlet (x = L) — Non-reflecting (absorbing) BC
+  # Riemann invariant extrapolation or zero-gradient for all variables
+
+---
+
+## 4. Time Integration
+
+- End time      : t_end = 2.0e-3 s   (2 ms, target for comparison)
+- CFL condition : CFL = 0.5
+  dt = CFL * dx / max(|u| + a)       # update every time step
+
+---
+
+## 5. Theoretical Reference Values (at t = 2 ms, Case A — linear regime)
+
+Acoustic impedance:
+  Z_Air   = rho0_Air   * a_Air          # a_Air  = sqrt(gamma*p0/rho0_Air) ≈ 347 m/s
+  Z_Water = rho0_Water * a_Water        # a_Water ≈ 1343 m/s
+
+Incident wave pressure amplitude:
+  dp_incident = Z_Air * du0
+
+Reflected wave pressure amplitude (impedance mismatch formula):
+  dp_reflected = dp_incident * (2*Z_Water / (Z_Water - Z_Air) - 1)
+
+  # Since Z_Water >> Z_Air:
+  #   dp_reflected ≈ dp_incident          (incompressible water, a_water → ∞)
+  #   dp_reflected ≈ 0.999 * dp_incident  (compressible water, a_water = 1343 m/s)
+  # Difference < 0.1% → negligible
+
+Transmitted wave:
+  # Present only when water is compressible (finite a_water)
+  # Absent when water is incompressible   (a_water → ∞)
+
+---
+
+## 6. Expected Output
+
+- Pressure profile dp(x) = p(x) - p0   at t = 2e-3 s
+- Identify and label:
+    * Incident wave   (air region,   x < 0.5 m, before interface interaction)
+    * Reflected wave  (air region,   x < 0.5 m, after interface interaction)
+    * Transmitted wave (water region, x > 0.5 m)
+- Overlay theoretical dp_reflected and dp_transmitted for Case A validation

@@ -1,0 +1,207 @@
+# Mixture Thermodynamic Properties — Calculation Specification
+
+## Overview
+
+Compute mixture thermodynamic state variables and their derivatives
+from per-species EOS values, using mass fraction (Y_i) as the
+primary composition variable.
+
+---
+
+## 0. Per-Species EOS Values (Input from Each Species EOS)
+
+For each species i, the following values are obtained by calling
+the corresponding EOS function EOS_i(p, u, v, w, T):
+
+  rho_i      : species density                        [kg/m³]
+  Et_i       : species total internal energy          [J/kg]
+  Ht_i       : species total enthalpy                 [J/kg]
+  drho_i/dp  : partial derivative of rho_i w.r.t. p
+  drho_i/dT  : partial derivative of rho_i w.r.t. T
+  dHt_i/dp   : partial derivative of Ht_i  w.r.t. p
+  dHt_i/dT   : partial derivative of Ht_i  w.r.t. T
+  d²rho_i/dp²   : 2nd derivative of rho_i w.r.t. p
+  d²rho_i/dpdT  : mixed 2nd derivative of rho_i
+  d²rho_i/dT²   : 2nd derivative of rho_i w.r.t. T
+
+NOTE: All quantities with subscript _i throughout this document
+      refer to values obtained from the EOS of species i.
+      Each species has its own EOS (Ideal Gas, SG, NASG, etc.),
+      and these are computed independently before mixture
+      properties are assembled.
+
+---
+
+## 1. Input Variables
+
+  Primitive variables   : p, u, v, w, T
+  Composition           : Y_i  for i = 0, ..., N-2   (independent)
+  Last species mass fraction (dependent, enforced by partition):
+    Y_{N-1} = clamp(1 - sum(Y_i, i=0..N-2), Y_min, Y_max)
+
+---
+
+## 2. Mixture Density — Harmonic Mean
+
+  1/rho = sum_i ( Y_i / rho_i )
+
+  rho = 1 / sum_i ( Y_i / rho_i )                        ... (1)
+
+  Physical meaning: volume-additive mixing rule.
+  Each rho_i is obtained from the EOS of species i.
+
+---
+
+## 3. Mixture Total Enthalpy — Arithmetic Mean
+
+  Ht = sum_i ( Y_i * Ht_i )                              ... (2)
+
+  Each Ht_i is obtained from the EOS of species i.
+
+---
+
+## 4. First Derivatives of Mixture Density
+
+Derived from differentiating (1) via chain rule:
+
+  drho/dp = rho^2 * sum_i ( Y_i / rho_i^2 * drho_i/dp )     ... (3)
+  drho/dT = rho^2 * sum_i ( Y_i / rho_i^2 * drho_i/dT )     ... (4)
+
+First derivative w.r.t. mass fraction Y_i
+(last species Y_N is dependent on Y_i, so delta term appears):
+
+  drho/dY_i = rho^2 * ( -1/rho_i + 1/rho_N )               ... (5)
+
+First derivatives of enthalpy:
+
+  dHt/dp  = sum_i ( Y_i * dHt_i/dp )                        ... (6)
+  dHt/dT  = sum_i ( Y_i * dHt_i/dT )                        ... (7)
+  dHt/dY_i = Ht_i - Ht_N                                    ... (8)
+
+---
+
+## 5. Second Derivatives of Mixture Density
+
+Let:
+  term1_pp = sum_i ( Y_i / rho_i^2 * d²rho_i/dp² )
+  term2_pp = sum_i ( -2 * Y_i / rho_i^3 * (drho_i/dp)^2 )
+
+  term1_pT = sum_i ( Y_i / rho_i^2 * d²rho_i/dpdT )
+  term2_pT = sum_i ( -2 * Y_i / rho_i^3 * drho_i/dp * drho_i/dT )
+
+  term1_TT = sum_i ( Y_i / rho_i^2 * d²rho_i/dT² )
+  term2_TT = sum_i ( -2 * Y_i / rho_i^3 * (drho_i/dT)^2 )
+
+Then:
+
+  d²rho/dp²  = rho^2 * ( 2*rho*(drho/dp)^2 + term1_pp + term2_pp )   ... (9)
+  d²rho/dpdT = rho^2 * ( 2*rho*(drho/dp)*(drho/dT) + term1_pT + term2_pT ) ... (10)
+  d²rho/dT²  = rho^2 * ( 2*rho*(drho/dT)^2 + term1_TT + term2_TT )   ... (11)
+
+Cross derivatives with mass fraction Y_i:
+
+  d²rho/dpdY_i = -2*rho*(drho/dp)/rho_i + rho^2*(drho_i/dp)/rho_i^2
+               - ( -2*rho*(drho/dp)/rho_N + rho^2*(drho_N/dp)/rho_N^2 )
+
+  d²rho/dTdY_i = -2*rho*(drho/dT)/rho_i + rho^2*(drho_i/dT)/rho_i^2
+               - ( -2*rho*(drho/dT)/rho_N + rho^2*(drho_N/dT)/rho_N^2 )
+
+  d²Ht/dpdY_i  = dHt_i/dp - dHt_N/dp
+  d²Ht/dTdY_i  = dHt_i/dT - dHt_N/dT
+
+NOTE: rho_N, drho_N/dp, drho_N/dT, dHt_N/dp, dHt_N/dT
+      are all obtained from the EOS of the last (N-th) species.
+
+---
+
+## 6. Volume Fraction Calculation
+
+  alpha_i = rho * Y_i / rho_i                                ... (12)
+
+  alpha_N = clamp(1 - sum(alpha_i, i=0..N-2), alpha_min, alpha_max)
+
+  Each rho_i is obtained from the EOS of species i.
+
+---
+
+## 7. Volume Fraction Derivatives
+
+  d(alpha_i)/dp     = (drho/dp)*Y_i/rho_i - alpha_i/rho_i*(drho_i/dp)
+  d(alpha_i)/dT     = (drho/dT)*Y_i/rho_i - alpha_i/rho_i*(drho_i/dT)
+
+  d(alpha_i)/dY_j   = (drho/dY_j)*Y_i/rho_i + rho/rho_i * delta(i,j)
+    where delta(i,j) = 1 if i==j, else 0
+
+Jacobian matrix dVFdprim[i][q] for primitive vector q = [p, u, v, w, T, Y_0, ..., Y_{N-2}]:
+
+  dVFdprim[i][0]       = d(alpha_i)/dp          (pressure)
+  dVFdprim[i][1,2,3]   = 0.0                    (velocity — no dependence)
+  dVFdprim[i][4]       = d(alpha_i)/dT          (temperature)
+  dVFdprim[i][5+j]     = d(alpha_i)/dY_j        (mass fractions)
+
+For last species row (i = N-1):
+  dVFdprim[N-1][q] = -sum_i( dVFdprim[i][q] )  for i = 0..N-2
+
+---
+
+## 8. Mixture Speed of Sound
+
+Derived from combined energy equation + EOS:
+
+  1/(rho*c^2) = drho/dp + drho/dT * ( 1/rho - dHt/dp ) / dHt/dT
+
+  c = sqrt( 1 / ( drho/dp + drho/dT * (1/rho - dHt/dp) / dHt/dT ) )  ... (13)
+
+NOTE: This is the generalized form valid for any EOS (not limited to
+      ideal gas). It reduces to c = sqrt(gamma*p/rho) for ideal gas.
+
+---
+
+## 9. Calculation Flow Summary
+
+  Step 1. Compute Y_N = clamp(1 - sum(Y_i), Y_min, Y_max)
+
+  Step 2. For each species i:
+            Call EOS_i(p, u, v, w, T)
+            → obtain rho_i, Ht_i, drho_i/dp, drho_i/dT,
+                      dHt_i/dp, dHt_i/dT,
+                      d²rho_i/dp², d²rho_i/dpdT, d²rho_i/dT²
+
+  Step 3. Assemble mixture density (harmonic mean):
+            rho = 1 / sum_i(Y_i / rho_i)
+
+  Step 4. Assemble mixture enthalpy (arithmetic mean):
+            Ht = sum_i(Y_i * Ht_i)
+
+  Step 5. Compute 1st derivatives:
+            drho/dp, drho/dT, drho/dY_i
+            dHt/dp,  dHt/dT,  dHt/dY_i
+
+  Step 6. Compute 2nd derivatives:
+            d²rho/dp², d²rho/dpdT, d²rho/dT²
+            d²rho/dpdY_i, d²rho/dTdY_i
+            d²Ht/dpdY_i,  d²Ht/dTdY_i
+
+  Step 7. Compute volume fractions:
+            alpha_i = rho * Y_i / rho_i
+            alpha_N = clamp(1 - sum(alpha_i), ...)
+
+  Step 8. Compute volume fraction Jacobian:
+            dVFdprim[i][q]  for all i, q
+
+  Step 9. Compute speed of sound:
+            c = sqrt(1 / (drho/dp + drho/dT*(1/rho - dHt/dp)/dHt/dT))
+
+---
+
+## 10. Output Variables
+
+  Scalars  : rho, Ht, c
+  1st deriv: drho/dp, drho/dT, dHt/dp, dHt/dT
+  2nd deriv: d²rho/dp², d²rho/dpdT, d²rho/dT²
+  Vectors  : alpha_i, rho_i, drho_i/dp, drho_i/dT
+             drho/dY_i, dHt/dY_i
+             d²rho/dpdY_i, d²rho/dTdY_i
+             d²Ht/dpdY_i,  d²Ht/dTdY_i
+             d(alpha_i)/dp, d(alpha_i)/dT, d(alpha_i)/dY_i
+  Matrix   : dVFdprim[N_species x N_primitives]
