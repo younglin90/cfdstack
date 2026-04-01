@@ -5,7 +5,7 @@ set -e
 CFDSTACK_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 
-SKILLS=(cfd-new cfd-check cfd-run cfd-post cfd-debug cfd-validate cfd-report)
+SKILLS=(cfd-new cfd-check cfd-run cfd-post cfd-debug cfd-validate cfd-report cfd-paper-to-code cfd-vv cfd-debug-adv cfd-flux cfd-reconstruction cfd-time-integration cfd-implicit cfd-euler cfd-ns cfd-turbulence)
 
 echo "Installing cfdstack skills..."
 
@@ -20,6 +20,11 @@ ln -snf "$CFDSTACK_DIR" "$CLAUDE_SKILLS_DIR/cfdstack"
 
 # Symlink each individual skill directory
 for skill in "${SKILLS[@]}"; do
+  # Skip if skill directory doesn't exist yet (will be created by cfd-skill-forge)
+  if [ ! -d "$CFDSTACK_DIR/$skill" ]; then
+    echo "  - /$skill (not yet created)"
+    continue
+  fi
   target="$CLAUDE_SKILLS_DIR/$skill"
   if [ -L "$target" ] || [ -d "$target" ]; then
     rm -rf "$target"
@@ -29,18 +34,9 @@ for skill in "${SKILLS[@]}"; do
 done
 
 echo ""
-echo "cfdstack ready."
+echo "cfdstack ready. (17 skills)"
 echo ""
-echo "Available skills:"
-echo "  /cfdstack     — overview and skill navigation"
-echo "  /cfd-new      — scaffold a new CFD simulation case"
-echo "  /cfd-check    — validate mesh quality and case setup"
-echo "  /cfd-run      — run solver and monitor convergence"
-echo "  /cfd-post     — post-process and visualize results"
-echo "  /cfd-debug    — debug divergence and convergence issues"
-echo "  /cfd-validate — validate results against benchmarks"
-echo "  /cfd-report   — generate a simulation report"
-echo ""
-echo "Add cfdstack to your project's CLAUDE.md so teammates get it:"
-echo "  cp -Rf ~/.claude/skills/cfdstack .claude/skills/cfdstack"
-echo "  cd .claude/skills/cfdstack && ./setup"
+echo "Simulation:  /cfd-new /cfd-check /cfd-run /cfd-post /cfd-debug /cfd-validate /cfd-report"
+echo "Solver dev:  /cfd-paper-to-code /cfd-vv /cfd-debug-adv /cfd-flux /cfd-reconstruction"
+echo "             /cfd-time-integration /cfd-implicit /cfd-euler /cfd-ns /cfd-turbulence"
+echo "Overview:    /cfdstack"

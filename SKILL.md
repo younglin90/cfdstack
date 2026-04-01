@@ -3,12 +3,11 @@ name: cfdstack
 version: 1.0.0
 description: |
   MANUAL TRIGGER ONLY: invoke only when user types /cfdstack.
-  CFD simulation assistant overview. Shows available skills and guides users
-  to the right workflow. Use when asked about "cfdstack", "CFD skills",
-  "what CFD commands are available", or "help with CFD simulation".
-  Also suggest adjacent skills by stage: new case /cfd-new; mesh check /cfd-check;
-  run solver /cfd-run; post-process /cfd-post; debug issues /cfd-debug;
-  validate results /cfd-validate; generate report /cfd-report.
+  CFD simulation and solver development assistant overview. Shows available skills
+  and guides users to the right workflow. Use when asked about "cfdstack", "CFD skills",
+  "what CFD commands are available", or "help with CFD simulation/solver development".
+  Two tracks: (1) Simulation: /cfd-new → /cfd-check → /cfd-run → /cfd-post → /cfd-validate → /cfd-report.
+  (2) Solver development: /cfd-paper-to-code → /cfd-euler|/cfd-ns|/cfd-turbulence → /cfd-flux|/cfd-reconstruction|/cfd-time-integration|/cfd-implicit → /cfd-vv → /cfd-debug-adv.
 allowed-tools:
   - Bash
   - Read
@@ -66,6 +65,34 @@ Claude: [Cd=1.35를 문헌값(1.33±0.05)과 비교: PASS]
 Claude: [simulation_report.md 전체 보고서 생성]
 ```
 
+### 솔버 개발 스킬 (Solver Development)
+
+논문의 수치 스킴을 코드로 구현하는 개발자를 위한 스킬입니다.
+
+| 스킬 | 분류 | 설명 |
+|------|------|------|
+| `/cfd-paper-to-code` | **범용** | 논문→코드 변환 가이드. 수식 전사, 인덱스 매핑, 차원 검증, 생략 복원. |
+| `/cfd-vv` | **범용** | 검증 및 확인. MMS, 격자 수렴, GCI, 벤치마크 비교. |
+| `/cfd-debug-adv` | **범용** | 솔버 디버깅 심화. 5가지 발산 패턴 분류, NaN 추적, Jacobian 검증. |
+| `/cfd-flux` | **방법론** | Flux 함수 구현. Roe, AUSM, HLLC, Rusanov 패밀리별 체크리스트. |
+| `/cfd-reconstruction` | **방법론** | 고차 재구성. MUSCL, WENO, compact 스킴 가이드. |
+| `/cfd-time-integration` | **방법론** | 시간 적분. Explicit RK, BDF, SDIRK, dual time stepping. |
+| `/cfd-implicit` | **방법론** | Implicit 솔버. Jacobian, 희소행렬, GMRES, 전처리기, Newton. |
+| `/cfd-euler` | **방정식** | Euler 방정식. 보존법칙, 특성 분석, 엔트로피, 양보존. |
+| `/cfd-ns` | **방정식** | Navier-Stokes. 점성항, 열전달, 압축성/비압축성, SIMPLE/Projection. |
+| `/cfd-turbulence` | **방정식** | 난류 모델. SA, k-ε, k-ω SST, 벽함수, y+. |
+
+#### 솔버 개발 워크플로
+
+```
+논문 읽기 → /cfd-paper-to-code (수식 전사 + 매핑)
+         → /cfd-euler 또는 /cfd-ns (방정식 구현)
+         → /cfd-flux + /cfd-reconstruction (공간 이산화)
+         → /cfd-time-integration + /cfd-implicit (시간 적분)
+         → /cfd-vv (검증)
+         → /cfd-debug-adv (문제 발생 시)
+```
+
 ### 설치
 
 ```bash
@@ -78,6 +105,7 @@ cd ~/.claude/skills/cfdstack && ./setup
 ```
 ## cfdstack
 Available skills: /cfd-new, /cfd-check, /cfd-run, /cfd-post, /cfd-debug, /cfd-validate, /cfd-report
+Solver dev: /cfd-paper-to-code, /cfd-vv, /cfd-debug-adv, /cfd-flux, /cfd-reconstruction, /cfd-time-integration, /cfd-implicit, /cfd-euler, /cfd-ns, /cfd-turbulence
 ```
 
 스킬이 표시되지 않는 경우: `cd ~/.claude/skills/cfdstack && ./setup`
